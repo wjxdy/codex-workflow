@@ -118,7 +118,7 @@
 - `restore-context`：重开会话后读取 `PROJECT_PROGRESS.md`、`PROJECT_TODO.md`、`SESSION_HANDOFF.md` 和 git 状态，只恢复上下文认知；除非用户明确要求继续开发，否则不得自动修改文件。
 - `create-worktree-task`：主会话为独立任务创建 git worktree 和任务分支，创建后停止，不自动进入新 worktree 开发。
 - `finish-worktree-task`：worktree 工作窗口完成任务后生成 `WORKTREE_MERGE_NOTE.md`，记录真实改动、验证状态、风险和主会话合并建议。
-- `merge-worktree-task`：主会话读取 `WORKTREE_MERGE_NOTE.md` 并合并副分支；合并成功后停止，不删除 worktree 或副分支；冲突时给出方案和后果，由用户选择。
+- `merge-worktree-task`：主会话读取 `WORKTREE_MERGE_NOTE.md` 并合并副分支；合并时必须排除 `WORKTREE_MERGE_NOTE.md`，合并成功后停止，不删除 worktree 或副分支；冲突时给出方案和后果，由用户选择。
 
 ---
 

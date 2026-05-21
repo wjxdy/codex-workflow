@@ -115,7 +115,7 @@ codex-workflow/
 
 这个文件记录真实改动、关键文件、验证状态、风险、合并建议和主会话下一步。
 
-它不负责执行合并，不删除 worktree，也不删除分支。
+它不负责执行合并，不删除 worktree，也不删除分支。`WORKTREE_MERGE_NOTE.md` 只是临时合并说明文件，不能合入目标分支。
 
 ### skills/merge-worktree-task
 
@@ -267,6 +267,8 @@ WORKTREE_MERGE_NOTE.md
 
 主会话会读取 `WORKTREE_MERGE_NOTE.md`，检查状态，展示合并摘要，并在用户确认后执行合并。
 
+合并时必须排除 `WORKTREE_MERGE_NOTE.md`，不能把这个临时说明文件合入主分支。
+
 合并后不会删除 worktree 或分支。需要你运行项目或测试确认没问题后，再单独下指令清理。
 
 ## 安装方式
@@ -312,4 +314,5 @@ cp -R skills/restore-context ~/.codex/skills/
 - `restore-context` 只恢复认知，不默认继续开发。
 - worktree 拆分开发由主会话创建，工作会话开发，主会话合并。
 - 合并成功不等于可以清理；worktree 和副分支必须等用户验证后再单独清理。
+- `WORKTREE_MERGE_NOTE.md` 只供主会话合并前阅读，合并时必须排除，不能进入目标分支。
 - 所有文档、计划、总结、待办和项目记忆默认使用中文。

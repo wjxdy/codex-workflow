@@ -33,7 +33,8 @@ description: 当用户要求在主会话中合并某个 worktree 任务分支、
 - 主仓库工作区不干净时，暂停并询问用户，不要合并。
 - 目标 worktree 有未提交改动时，暂停并询问用户，不要合并。
 - 合并前必须向用户展示摘要、风险和将执行的命令，并获得明确确认。
-- 默认使用普通 merge：`git merge <branch>`。
+- 默认使用普通 merge 语义，但必须用 `git merge --no-commit --no-ff <branch>` 先暂停在可检查状态，排除 `WORKTREE_MERGE_NOTE.md` 后再提交。
+- `WORKTREE_MERGE_NOTE.md` 是临时合并说明文件，必须从主分支合并结果中排除，不得进入目标分支提交。
 - 不要自动 push。
 - 不要删除 worktree。
 - 不要删除副分支。
@@ -64,9 +65,14 @@ description: 当用户要求在主会话中合并某个 worktree 任务分支、
    - 合并说明中不能存在明确的“不应合并”阻塞项。
 6. 输出合并前摘要并询问用户确认。
 7. 用户确认后，在主仓库执行：
-   - `git merge <branch>`
-8. 如果合并成功，输出合并结果并停止。
-9. 如果出现冲突，进入冲突处理流程。
+   - `git merge --no-commit --no-ff <branch>`
+8. 如果合并没有冲突，检查合并结果中是否包含 `WORKTREE_MERGE_NOTE.md`：
+   - 如果包含，必须从 index 和工作区中排除。
+   - 如果目标分支原本没有该文件，移除该文件的 staged 记录和工作区副本。
+   - 如果目标分支原本已有该文件，恢复为目标分支合并前版本。
+9. 确认 `WORKTREE_MERGE_NOTE.md` 不在待提交变更中后，提交 merge commit。
+10. 如果出现冲突，进入冲突处理流程。
+11. 如果合并成功，输出合并结果并停止。
 
 ## 合并前摘要格式
 
@@ -84,11 +90,45 @@ description: 当用户要求在主会话中合并某个 worktree 任务分支、
 
 将执行命令：
 ```bash
-git merge <branch>
+git merge --no-commit --no-ff <branch>
+# 排除 WORKTREE_MERGE_NOTE.md 后提交 merge commit
 ```
 
 请确认是否执行合并。
 ````
+
+## 排除合并说明文件
+
+`WORKTREE_MERGE_NOTE.md` 只给主会话合并前阅读，不属于业务代码或项目文档，不能合入目标分支。
+
+合并后、提交前必须检查：
+
+```bash
+git status --short -- WORKTREE_MERGE_NOTE.md
+git diff --cached --name-only -- WORKTREE_MERGE_NOTE.md
+```
+
+如果目标分支合并前不存在 `WORKTREE_MERGE_NOTE.md`，从合并结果中移除：
+
+```bash
+git rm --cached -- WORKTREE_MERGE_NOTE.md
+rm -- WORKTREE_MERGE_NOTE.md
+```
+
+如果目标分支合并前已经存在 `WORKTREE_MERGE_NOTE.md`，恢复目标分支原版本：
+
+```bash
+git restore --source=HEAD --staged --worktree -- WORKTREE_MERGE_NOTE.md
+```
+
+排除后再次确认：
+
+```bash
+git status --short -- WORKTREE_MERGE_NOTE.md
+git diff --cached --name-only -- WORKTREE_MERGE_NOTE.md
+```
+
+只有确认该文件不会进入 merge commit 后，才能提交合并结果。
 
 ## 冲突处理规则
 
@@ -101,6 +141,7 @@ git merge <branch>
 - 必要时可以调用相关 skill 辅助分析、调试或验证。
 - 必须给用户 2-3 个解决方案，并说明每个方案的后果。
 - 等用户选择后，再按用户选择解决冲突。
+- 解决冲突后仍必须排除 `WORKTREE_MERGE_NOTE.md`。
 - 冲突解决后继续完成 merge。
 - 合并完成后仍不得删除 worktree 或分支。
 
