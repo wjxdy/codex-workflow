@@ -226,6 +226,8 @@ Codex 会读取三个项目文件和 git 状态，然后输出恢复摘要。
 继续开发。
 ```
 
+恢复成功后，Codex 会提示 `SESSION_HANDOFF.md` 是临时交接文件，当前上下文已经恢复，可以删除，并询问是否删除。只有用户明确同意后，才会删除 `SESSION_HANDOFF.md`；不会删除 `PROJECT_PROGRESS.md` 或 `PROJECT_TODO.md`。
+
 如果希望恢复后直接继续，也可以明确说：
 
 ```text
@@ -325,6 +327,7 @@ cp -R skills/restore-context ~/.codex/skills/
 - 模板和具体流程放在对应 skill 中。
 - `PROJECT_TODO.md` 保持干净，只放未完成事项。
 - `SESSION_HANDOFF.md` 可以详细，用来承接上下文。
+- `SESSION_HANDOFF.md` 是临时交接文件，恢复成功后应询问用户是否删除；用户确认后才能删除。
 - `restore-context` 只恢复认知，不默认继续开发。
 - worktree 拆分开发由主会话创建，工作会话开发，主会话合并。
 - 合并成功不等于可以清理；worktree 和副分支必须等用户验证后，再通过 `merge-worktree-task` 的清理阶段处理。
