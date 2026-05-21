@@ -18,6 +18,12 @@ codex-workflow/
 ├── AGENTS.md
 ├── README.md
 └── skills/
+    ├── create-worktree-task/
+    │   └── SKILL.md
+    ├── finish-worktree-task/
+    │   └── SKILL.md
+    ├── merge-worktree-task/
+    │   └── SKILL.md
     ├── project-memory/
     │   └── SKILL.md
     ├── session-handoff/
@@ -92,6 +98,37 @@ codex-workflow/
 
 - 调用 `restore-context` 不代表授权继续开发。
 - 除非用户明确说“恢复后继续开发”，否则它必须在恢复摘要后停止，等待用户下一条指令。
+
+### skills/create-worktree-task
+
+用于主会话创建独立 worktree 和任务分支。
+
+适合在一个项目中拆出可以独立开发的任务时使用。它会检查主仓库状态，创建可读的分支名和 worktree 目录，然后停止，提醒用户在 Codex 客户端中新开会话进入该 worktree。
+
+它不负责在新 worktree 中开发，也不负责合并或清理。
+
+### skills/finish-worktree-task
+
+用于 worktree 工作窗口完成任务后，生成主会话合并需要看的说明文件：
+
+- `WORKTREE_MERGE_NOTE.md`
+
+这个文件记录真实改动、关键文件、验证状态、风险、合并建议和主会话下一步。
+
+它不负责执行合并，不删除 worktree，也不删除分支。
+
+### skills/merge-worktree-task
+
+用于主会话读取 `WORKTREE_MERGE_NOTE.md` 并合并某个 worktree 任务分支。
+
+合并前它会检查主仓库和目标 worktree 状态，展示摘要、风险和将执行的命令，并等待用户确认。
+
+重要边界：
+
+- 合并成功后停止，等待用户运行项目或测试确认。
+- 不删除 worktree。
+- 不删除副分支。
+- 遇到冲突时，不擅自选择任一方；必须分析方案和后果，让用户选择后再解决。
 
 ## 项目中的三个记忆文件
 
@@ -194,6 +231,44 @@ Codex 会读取三个项目文件和 git 状态，然后输出恢复摘要。
 调用 restore-context，恢复后继续开发。
 ```
 
+### 5. 拆分并行 worktree 任务
+
+在主会话中可以说：
+
+```text
+调用 create-worktree-task，为支付模块重构创建一个 worktree。
+```
+
+创建完成后，在 Codex 客户端中新开会话，选择新 worktree 路径作为工作目录，只处理该任务。
+
+### 6. worktree 任务完成后生成合并说明
+
+在 worktree 工作窗口中可以说：
+
+```text
+调用 finish-worktree-task，生成合并说明。
+```
+
+它会生成：
+
+```text
+WORKTREE_MERGE_NOTE.md
+```
+
+然后回到主会话。
+
+### 7. 主会话合并 worktree 分支
+
+在主会话中可以说：
+
+```text
+调用 merge-worktree-task，合并 <worktree 路径或分支名>。
+```
+
+主会话会读取 `WORKTREE_MERGE_NOTE.md`，检查状态，展示合并摘要，并在用户确认后执行合并。
+
+合并后不会删除 worktree 或分支。需要你运行项目或测试确认没问题后，再单独下指令清理。
+
 ## 安装方式
 
 把本仓库中的文件复制到 Codex 配置目录：
@@ -201,6 +276,9 @@ Codex 会读取三个项目文件和 git 状态，然后输出恢复摘要。
 ```bash
 cp AGENTS.md ~/.codex/AGENTS.md
 mkdir -p ~/.codex/skills
+cp -R skills/create-worktree-task ~/.codex/skills/
+cp -R skills/finish-worktree-task ~/.codex/skills/
+cp -R skills/merge-worktree-task ~/.codex/skills/
 cp -R skills/project-memory ~/.codex/skills/
 cp -R skills/session-handoff ~/.codex/skills/
 cp -R skills/restore-context ~/.codex/skills/
@@ -232,4 +310,6 @@ cp -R skills/restore-context ~/.codex/skills/
 - `PROJECT_TODO.md` 保持干净，只放未完成事项。
 - `SESSION_HANDOFF.md` 可以详细，用来承接上下文。
 - `restore-context` 只恢复认知，不默认继续开发。
+- worktree 拆分开发由主会话创建，工作会话开发，主会话合并。
+- 合并成功不等于可以清理；worktree 和副分支必须等用户验证后再单独清理。
 - 所有文档、计划、总结、待办和项目记忆默认使用中文。
