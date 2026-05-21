@@ -1,0 +1,13 @@
+.DS_Store
+*.log
+*.sqlite
+*.sqlite-*
+.env
+.env.*
+credentials*
+*.pem
+*.key
+*.pfx
+*.p12
+*.keystore
+*.jks
