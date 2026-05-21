@@ -36,6 +36,7 @@ description: 当 worktree 任务开发完成或准备交给主会话合并时使
 - 不要自动删除 worktree 或分支。
 - 不要自动 push，除非用户明确要求并按 `AGENTS.md` 危险操作规则确认。
 - 如果工作区还有未提交改动，要在合并说明中明确标出。
+- `WORKTREE_MERGE_NOTE.md` 默认保持未提交状态，不要 commit 到任务分支。
 
 ## 工作流程
 
@@ -51,7 +52,7 @@ description: 当 worktree 任务开发完成或准备交给主会话合并时使
    - `git diff --stat`
    - 如有 staged 改动，也读取 `git diff --cached --stat`
 6. 根据当前会话、git 状态和实际文件改动，生成 `WORKTREE_MERGE_NOTE.md`。
-7. 如任务还未提交，提醒用户是否需要先提交；不要擅自提交。
+7. 如任务代码还未提交，提醒用户是否需要先提交；不要擅自提交。`WORKTREE_MERGE_NOTE.md` 不需要提交。
 8. 完成后告诉用户：
    - 合并说明文件路径
    - 当前分支

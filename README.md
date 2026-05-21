@@ -121,13 +121,14 @@ codex-workflow/
 
 用于主会话读取 `WORKTREE_MERGE_NOTE.md` 并合并某个 worktree 任务分支。
 
-合并前它会检查主仓库和目标 worktree 状态，展示摘要、风险和将执行的命令，并等待用户确认。
+合并前它会检查主仓库和目标 worktree 状态，展示摘要、风险和将执行的命令，并等待用户确认。用户验证合并结果没问题后，也由这个 skill 进入清理阶段，删除对应 worktree 和副分支。
 
 重要边界：
 
 - 合并成功后停止，等待用户运行项目或测试确认。
-- 不删除 worktree。
-- 不删除副分支。
+- 合并阶段不删除 worktree。
+- 合并阶段不删除副分支。
+- 清理阶段只能在用户明确说“验证没问题，清理 worktree / 删除分支”后执行。
 - 遇到冲突时，不擅自选择任一方；必须分析方案和后果，让用户选择后再解决。
 
 ## 项目中的三个记忆文件
@@ -269,7 +270,20 @@ WORKTREE_MERGE_NOTE.md
 
 合并时必须排除 `WORKTREE_MERGE_NOTE.md`，不能把这个临时说明文件合入主分支。
 
-合并后不会删除 worktree 或分支。需要你运行项目或测试确认没问题后，再单独下指令清理。
+合并后不会立刻删除 worktree 或分支。需要你运行项目或测试确认没问题后，再明确下指令：
+
+```text
+调用 merge-worktree-task，验证没问题，清理这个 worktree。
+```
+
+清理阶段会先检查主分支已经包含副分支提交、主仓库工作区干净、worktree 没有除 `WORKTREE_MERGE_NOTE.md` 外的未保存改动，然后再执行：
+
+```bash
+git worktree remove <worktree-path>
+git branch -d <branch>
+```
+
+如果 `git branch -d` 失败，不会自动强删，需要你再次确认。
 
 ## 安装方式
 
@@ -313,6 +327,6 @@ cp -R skills/restore-context ~/.codex/skills/
 - `SESSION_HANDOFF.md` 可以详细，用来承接上下文。
 - `restore-context` 只恢复认知，不默认继续开发。
 - worktree 拆分开发由主会话创建，工作会话开发，主会话合并。
-- 合并成功不等于可以清理；worktree 和副分支必须等用户验证后再单独清理。
+- 合并成功不等于可以清理；worktree 和副分支必须等用户验证后，再通过 `merge-worktree-task` 的清理阶段处理。
 - `WORKTREE_MERGE_NOTE.md` 只供主会话合并前阅读，合并时必须排除，不能进入目标分支。
 - 所有文档、计划、总结、待办和项目记忆默认使用中文。

@@ -7,9 +7,9 @@ description: 当用户要求在主会话中合并某个 worktree 任务分支、
 
 ## 作用
 
-在主会话中读取指定 worktree 的 `WORKTREE_MERGE_NOTE.md`，检查副分支和主分支状态，然后把副分支合并到当前主分支。
+在主会话中读取指定 worktree 的 `WORKTREE_MERGE_NOTE.md`，检查副分支和主分支状态，然后把副分支合并到当前主分支。用户验证通过后，也可以由同一个 skill 执行 worktree 和副分支清理。
 
-这个 skill 只负责合并，不负责删除 worktree，不负责删除副分支，也不负责清理工作区。合并完成后必须停下，等待用户运行项目或测试确认。
+这个 skill 分为两个阶段：合并阶段和清理阶段。合并完成后必须停下，等待用户运行项目或测试确认；只有用户明确要求清理时，才进入清理阶段。
 
 ## 适用场景
 
@@ -17,12 +17,13 @@ description: 当用户要求在主会话中合并某个 worktree 任务分支、
 - 用户提供了 worktree 路径或分支名。
 - worktree 任务已经调用 `finish-worktree-task` 生成了 `WORKTREE_MERGE_NOTE.md`。
 - 主会话准备把副分支合入当前主分支。
+- 用户已经验证合并结果没问题，并明确要求清理对应 worktree 和副分支。
 
 不适用：
 
 - 在 worktree 工作窗口里继续开发。
 - 任务还没完成、没有合并说明、或者用户只是想查看状态。
-- 用户要求删除 worktree 或删除分支。清理不属于本 skill。
+- 用户只想删除任意目录或任意分支，但该目录/分支不是本 skill 刚合并过的 worktree 任务。
 
 ## 硬规则
 
@@ -31,16 +32,18 @@ description: 当用户要求在主会话中合并某个 worktree 任务分支、
 - 必须检查目标 worktree 的当前分支、最近提交和 `git status --short`。
 - 必须检查主仓库当前分支和 `git status --short`。
 - 主仓库工作区不干净时，暂停并询问用户，不要合并。
-- 目标 worktree 有未提交改动时，暂停并询问用户，不要合并。
+- 目标 worktree 有未提交改动时，除非唯一未提交改动是 `WORKTREE_MERGE_NOTE.md`，否则暂停并询问用户，不要合并。
 - 合并前必须向用户展示摘要、风险和将执行的命令，并获得明确确认。
 - 默认使用普通 merge 语义，但必须用 `git merge --no-commit --no-ff <branch>` 先暂停在可检查状态，排除 `WORKTREE_MERGE_NOTE.md` 后再提交。
 - `WORKTREE_MERGE_NOTE.md` 是临时合并说明文件，必须从主分支合并结果中排除，不得进入目标分支提交。
 - 不要自动 push。
-- 不要删除 worktree。
-- 不要删除副分支。
-- 不要执行 `git worktree remove`。
-- 不要执行 `git branch -d` 或 `git branch -D`。
+- 合并阶段不要删除 worktree。
+- 合并阶段不要删除副分支。
+- 合并阶段不要执行 `git worktree remove`。
+- 合并阶段不要执行 `git branch -d` 或 `git branch -D`。
 - 合并成功后必须停止，提醒用户运行项目或测试确认。
+- 清理阶段只能在用户明确说“验证没问题，清理 worktree / 删除分支”之后执行。
+- 清理阶段只能使用 `git worktree remove <path>` 和 `git branch -d <branch>`；如果 `git branch -d` 失败，不要自动改用 `git branch -D`，必须再次询问用户。
 
 ## 工作流程
 
@@ -60,7 +63,7 @@ description: 当用户要求在主会话中合并某个 worktree 任务分支、
    - `git -C <worktree-path> log --oneline -n 5`
 5. 检查是否可合并：
    - 主仓库工作区必须干净。
-   - 目标 worktree 工作区必须干净。
+   - 目标 worktree 工作区必须干净；唯一允许的例外是未提交的 `WORKTREE_MERGE_NOTE.md`。
    - 目标分支必须明确。
    - 合并说明中不能存在明确的“不应合并”阻塞项。
 6. 输出合并前摘要并询问用户确认。
@@ -73,6 +76,42 @@ description: 当用户要求在主会话中合并某个 worktree 任务分支、
 9. 确认 `WORKTREE_MERGE_NOTE.md` 不在待提交变更中后，提交 merge commit。
 10. 如果出现冲突，进入冲突处理流程。
 11. 如果合并成功，输出合并结果并停止。
+
+## 两阶段流程
+
+### 阶段一：合并
+
+用户要求“合并某个 worktree / 分支”时，只执行合并阶段。
+
+合并阶段结束后必须停止，并提醒用户：
+
+- 运行项目。
+- 跑必要测试。
+- 手动确认功能表现。
+- 确认没问题后，再明确要求清理 worktree / 分支。
+
+### 阶段二：清理
+
+用户明确说“验证没问题，清理这个 worktree / 删除这个分支”时，才执行清理阶段。
+
+清理前必须检查：
+
+1. 当前目录是主仓库，不是目标 worktree。
+2. 目标 worktree 路径明确。
+3. 副分支名明确。
+4. 主仓库工作区干净。
+5. 目标 worktree 没有除 `WORKTREE_MERGE_NOTE.md` 外的未保存改动。
+6. 当前主分支已经包含副分支提交：
+   - `git merge-base --is-ancestor <branch> HEAD`
+
+清理前必须向用户展示将执行的命令并再次确认：
+
+```bash
+git worktree remove <worktree-path>
+git branch -d <branch>
+```
+
+如果 `git branch -d <branch>` 失败，只能说明原因并停止。需要强删时，必须由用户再次明确确认。
 
 ## 合并前摘要格式
 
@@ -197,7 +236,39 @@ git diff --cached --name-only -- WORKTREE_MERGE_NOTE.md
 
 我没有删除 worktree，也没有删除副分支。
 
-下一步请运行项目或测试确认结果。确认没问题后，你可以再明确要求清理 worktree / 分支。
+下一步请运行项目或测试确认结果。确认没问题后，你可以再明确要求我清理 worktree / 分支。
+```
+
+## 清理前摘要格式
+
+````markdown
+准备清理已合并的 worktree 任务：
+
+- Worktree：
+- 副分支：
+- 当前主分支：
+- 主分支是否包含副分支提交：
+- 主仓库工作区：
+- Worktree 工作区：
+
+将执行命令：
+```bash
+git worktree remove <worktree-path>
+git branch -d <branch>
+```
+
+请确认是否清理。
+````
+
+## 清理完成回复格式
+
+```markdown
+清理已完成。
+
+- 已删除 worktree：
+- 已删除副分支：
+- 保留内容：
+- 后续建议：
 ```
 
 ## 注意事项
@@ -206,3 +277,4 @@ git diff --cached --name-only -- WORKTREE_MERGE_NOTE.md
 - 如果合并说明和实际 git 状态不一致，暂停并让用户确认。
 - 如果用户要求 squash、ff-only 或其他合并方式，先说明命令和影响，再等用户确认。
 - 如果验证失败，按项目规则处理；不要因为 merge 成功就声称任务完成。
+- 清理阶段不是合并阶段的一部分；合并完成不能自动进入清理。
