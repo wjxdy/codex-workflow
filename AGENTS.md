@@ -105,11 +105,29 @@
 - 会话开始时主动读取两个项目记忆文件；若两个文件不存在或缺任一文件，主动询问用户是否调用 `project-memory` skill 初始化，不要自行按条件创建
 - 更新时机：阶段变更、需求增减、阻塞解决（commit 后 hook 自动提醒；会话结束前若 commit 后未更新，Stop hook 会再次提醒）
 - 发现不属于当前任务范围的问题时，先向用户说明问题、影响和建议选项，由用户决定：立即作为当前任务的前置或子任务处理、记录到 `PROJECT_TODO.md` 本次不处理，或忽略；若该问题会导致当前验证无法继续，明确说明它是当前阻塞，但仍由用户确认如何处理
-- 与功能 commit 一起提交
+- 项目记忆文件只在本地维护，不得与功能 commit 一起提交
 
 ### 模板来源
 
 两个项目记忆文件的模板由 `project-memory` skill 统一维护；`AGENTS.md` 只定义触发与维护规则，不重复写模板。
+
+### 本地 AI 工作流文件保护
+
+以下文件属于本地 AI 工作流文件，只能留在本机，不得提交、合并或推送到远程：
+
+- `PROJECT_PROGRESS.md`
+- `PROJECT_TODO.md`
+- `SESSION_HANDOFF.md`
+- `WORKTREE_MERGE_NOTE.md`
+
+在任何项目中创建或更新这些文件前，必须优先确保本地 Git 保护：
+
+1. 写入项目本地 `.git/info/exclude`，忽略上述文件。
+2. 安装或更新项目本地 `.git/hooks/pre-commit`，阻止上述文件进入 commit。
+
+这些保护只允许写入本地 Git 配置目录，不得修改公司项目的 `.gitignore` 来实现。
+
+提交、合并、推送前必须检查上述文件没有被 staged 或 tracked；如果已经被 Git 追踪，必须暂停并提示用户用 `git rm --cached <file>` 从索引移除，同时保留本地文件。
 
 ### 相关 Skill
 
